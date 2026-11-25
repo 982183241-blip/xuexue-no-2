@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>计算器 1.0</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #edf2ef; color: #152720; font: 17px system-ui, sans-serif; padding: 20px; }
+main { width: min(100%, 380px); padding: 24px; background: #fff; border-radius: 24px; box-shadow: 0 16px 45px #1f38251a; }
+h1 { margin: 0 0 18px; font-size: 22px; }
+small { margin-left: 8px; color: #52685c; font-size: 13px; }
+.screen { padding: 14px 16px; margin-bottom: 14px; background: #eaf4ed; border-radius: 14px; text-align: right; overflow-wrap: anywhere; }
+#operation { min-height: 22px; font-size: 14px; color: #52685c; }
+output { font-size: 32px; font-variant-numeric: tabular-nums; }
+.keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+button { border: 0; border-radius: 10px; min-height: 54px; background: #f1f4f2; color: inherit; font: inherit; cursor: pointer; }
+button:hover { filter: brightness(.94); }
+button:focus-visible { outline: 3px solid #257250; outline-offset: 2px; }
+.op { background: #e3efe7; }
+.equal { background: #22583f; color: white; }
+.wide { grid-column: span 2; }
+.zero { grid-column: span 2; }
+</style>
+<main>
+<h1>计算器 <small>1.0</small></h1>
+<div class="screen">
+<div id="operation"></div>
+<output id="display" aria-label="当前数值" aria-live="polite">0</output>
+</div>
+<div class="keys" aria-label="计算器按键">
+<button class="wide" data-key="Escape">清空</button>
+<button data-key="Backspace" aria-label="退格">⌫</button>
+<button class="op" data-key="/" aria-label="除">÷</button>
+<button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+<button class="op" data-key="*" aria-label="乘">×</button>
+<button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+<button class="op" data-key="-" aria-label="减">−</button>
+<button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+<button class="op" data-key="+" aria-label="加">+</button>
+<button class="zero" data-key="0">0</button><button data-key=".">.</button>
+<button class="equal" data-key="=" aria-label="等于">=</button>
+</div>
+</main>
+<script>
+const display = document.querySelector('#display');
+const operation = document.querySelector('#operation');
+const symbols = { '+': '+', '-': '−', '*': '×', '/': '÷' };
+let current, left, operator, fresh, error;
+
+function reset() {
+  current = '0';
+  left = null;
+  operator = null;
+  fresh = true;
+  error = '';
+}
+
+function calculate() {
+  const right = Number(current);
+  const result = {
+    '+': () => left + right,
+    '-': () => left - right,
+    '*': () => left * right,
+    '/': () => left / right
+  }[operator]();
+  if (!Number.isFinite(result)) {
+    error = operator === '/' && right === 0 ? '除数不能为 0' : '结果超出范围';
+    return;
+  }
+  current = String(Number(result.toPrecision(15)));
+}
+
+function press(key) {
+  if (key === 'Escape') {
+    reset();
+  } else if (/^[0-9.]$/.test(key)) {
+    if (error) reset();
+    if (fresh) current = '0';
+    if (key === '.') {
+      if (!current.includes('.')) current += '.';
+    } else if (current.length < 15) {
+      current = current === '0' ? key : current + key;
+    }
+    fresh = false;
+  } else if (key === 'Backspace') {
+    if (error) reset();
+    if (!fresh) current = current.slice(0, -1) || '0';
+  } else if (!error && Object.hasOwn(symbols, key)) {
+    if (operator && !fresh) calculate();
+    left = Number(current);
+    operator = key;
+    fresh = true;
+  } else if (key === '=' && operator && !fresh && !error) {
+    calculate();
+    operator = null;
+    fresh = true;
+  }
+  operation.textContent = operator && !error ? left + ' ' + symbols[operator] : '';
+  display.textContent = error || current;
+}
+
+reset();
+document.querySelector('.keys').addEventListener('click', event => {
+  const button = event.target.closest('button[data-key]');
+  if (button) press(button.dataset.key);
+});
+document.addEventListener('keydown', event => {
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  if (event.key === 'Enter' && event.target.closest('button')) return;
+  const key = event.key === 'Enter' ? '=' : event.key;
+  if (/^[0-9.+*/=-]$/.test(key) || ['Escape', 'Backspace'].includes(key)) {
+    event.preventDefault();
+    press(key);
+  }
+});
+</script>
+</html>
